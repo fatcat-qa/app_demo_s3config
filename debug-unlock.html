@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Debug Unlock</title>
+  <meta name="theme-color" content="#0b0f14" />
+  <meta name="description" content="全品牌 debug-unlock deep link 解鎖入口。" />
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0f14;
+      --panel: #121922;
+      --panel-2: #182230;
+      --line: #283645;
+      --text: #eef5fb;
+      --muted: #9caeba;
+      --accent: #4a90e2;
+      --good: #2eaf75;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header { padding: 16px 16px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+    h1 { margin: 0 0 4px; font-size: 18px; }
+    header p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    header code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #cfe7ff; }
+
+    main { width: min(980px, 100%); margin: 0 auto; padding: 12px; display: grid; gap: 12px; }
+
+    .grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+
+    .brand {
+      display: flex; align-items: center; gap: 12px;
+      min-height: 56px; padding: 10px 12px;
+      border: 1px solid var(--line); border-radius: 8px;
+      background: var(--panel); text-decoration: none; color: var(--text);
+    }
+    .brand:active { background: var(--panel-2); }
+    .brand .info { flex: 1; min-width: 0; }
+    .brand .name { font-size: 14px; font-weight: 700; }
+    .brand .scheme {
+      margin-top: 2px; font-size: 12px; color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      word-break: break-all;
+    }
+    .brand .go {
+      flex: 0 0 auto; padding: 6px 12px; border-radius: 999px;
+      font-size: 12px; font-weight: 700; color: #06110b; background: var(--good);
+    }
+
+    .counter { font-size: 11px; color: var(--muted); padding: 4px 0 0; }
+
+    @media (min-width: 720px) {
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Debug Unlock</h1>
+    <p>
+      在 App WebView 內開啟本頁，點擊對應品牌以觸發
+      <code>&lt;urlScheme&gt;://debug-unlock</code> 解鎖 Debug 面板。<br />
+      解鎖後仍需 S3 config 的 <code>features.debugPanel = true</code> 才會顯示按鈕。
+    </p>
+  </header>
+
+  <main>
+    <div class="grid" id="grid"></div>
+    <div class="counter" id="counter"></div>
+  </main>
+
+  <script>
+    // 全品牌 urlScheme（來源：apps/<brand>/config.json）
+    var BRANDS = [
+      { brand: 'coa', name: 'COL77', scheme: 'coa' },
+      { brand: 'debugbrand', name: 'debugbrand', scheme: 'debugbrand' },
+      { brand: 'demo', name: 'JVDDEMO', scheme: 'jvddemo' },
+      { brand: 'haw', name: 'Hawkplay', scheme: 'haw' },
+      { brand: 'ibt', name: '247ibet', scheme: 'ibet247' },
+      { brand: 'lco', name: 'Luckycola', scheme: 'lco' },
+      { brand: 'lk9', name: 'Luck9', scheme: 'lk9' },
+      { brand: 'okbet', name: 'OKEBET', scheme: 'okbet' },
+      { brand: 'phb', name: 'PeryaPlay', scheme: 'phb' },
+      { brand: 'phf', name: 'Gobetplay', scheme: 'phf' },
+      { brand: 'phh', name: 'POTS', scheme: 'phh' },
+      { brand: 'phl', name: 'Tayazone', scheme: 'phl' },
+      { brand: 'phm', name: 'Lotto Panalo', scheme: 'phm' },
+      { brand: 'phn', name: 'Sabong747', scheme: 'phn' },
+      { brand: 'pho', name: 'Spinex', scheme: 'pho' },
+      { brand: 'phq', name: 'GoPyesta', scheme: 'phq' },
+      { brand: 'ric', name: 'Rich9', scheme: 'ric' },
+      { brand: 'sev', name: 'SevenBet', scheme: 'sev' },
+      { brand: 'sug', name: 'SugarPlay', scheme: 'sug' },
+      { brand: 'sww', name: 'SWWFIGHT', scheme: 'sww' }
+    ];
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    var grid = document.getElementById('grid');
+    grid.innerHTML = BRANDS.map(function (b) {
+      var link = b.scheme + '://debug-unlock';
+      return '<a class="brand" href="' + escapeHtml(link) + '">' +
+        '<div class="info">' +
+          '<div class="name">' + escapeHtml(b.name) + '</div>' +
+          '<div class="scheme">' + escapeHtml(link) + '</div>' +
+        '</div>' +
+        '<span class="go">解鎖</span>' +
+      '</a>';
+    }).join('');
+
+    document.getElementById('counter').textContent = '共 ' + BRANDS.length + ' 個品牌';
+  </script>
+</body>
+</html>

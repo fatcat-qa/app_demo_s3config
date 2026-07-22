@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Full Debug</title>
+  <meta name="theme-color" content="#0b0f14" />
+  <meta name="description" content="QA full debug: env, bridge, link, log." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Full Debug" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20512%20512%22%3E%3Crect%20width%3D%22512%22%20height%3D%22512%22%20rx%3D%22112%22%20fill%3D%22%230b0f14%22%2F%3E%3Crect%20x%3D%2240%22%20y%3D%2240%22%20width%3D%22432%22%20height%3D%22432%22%20rx%3D%2280%22%20fill%3D%22none%22%20stroke%3D%22%234a90e2%22%20stroke-width%3D%2214%22%2F%3E%3Ctext%20x%3D%22256%22%20y%3D%22318%22%20text-anchor%3D%22middle%22%20font-family%3D%22-apple-system%2CBlinkMacSystemFont%2C%27Segoe%20UI%27%2Csans-serif%22%20font-size%3D%22196%22%20font-weight%3D%22800%22%20fill%3D%22%23eef5fb%22%3EQA%3C%2Ftext%3E%3C%2Fsvg%3E" />
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0f14;
+      --panel: #121922;
+      --panel-2: #182230;
+      --line: #283645;
+      --text: #eef5fb;
+      --muted: #9caeba;
+      --accent: #4a90e2;
+      --good: #2eaf75;
+      --warn: #c98a1b;
+      --bad: #d85b66;
+      --code: #071017;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header { padding: 16px 16px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+    h1 { margin: 0 0 4px; font-size: 18px; }
+    header p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+    nav.tabs {
+      position: sticky; top: 0; z-index: 10;
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      background: var(--panel); border-bottom: 1px solid var(--line);
+    }
+    nav.tabs button {
+      min-height: 44px; border: 0; background: transparent; color: var(--muted);
+      font-size: 13px; font-weight: 700; cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    nav.tabs button.active { color: var(--text); border-bottom-color: var(--accent); }
+
+    main { width: min(980px, 100%); margin: 0 auto; padding: 12px; display: grid; gap: 12px; }
+
+    .panel-section { display: none; }
+    .panel-section.active { display: grid; gap: 12px; }
+
+    .status { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .badge {
+      display: flex; min-height: 50px; align-items: center; justify-content: space-between;
+      gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel);
+    }
+    .badge strong { font-size: 14px; }
+    .badge span {
+      flex: 0 0 auto; padding: 4px 8px; border-radius: 999px;
+      font-size: 12px; font-weight: 700; color: #06110b; background: var(--good);
+    }
+    .badge.warn span { color: #1a1000; background: var(--warn); }
+    .badge.bad span { color: #1a0506; background: var(--bad); }
+
+    .toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    button.action, a.action {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 44px; border: 0; border-radius: 8px; padding: 10px 12px;
+      background: var(--accent); color: #f8fbff; font-size: 14px; font-weight: 700;
+      text-decoration: none; text-align: center; cursor: pointer;
+      box-sizing: border-box;
+    }
+    button.action.secondary, a.action.secondary { background: #3d4b59; }
+    button.action.warn, a.action.warn { background: #9d6a13; }
+    button.action.danger, a.action.danger { background: #a4343a; }
+    button.action.good, a.action.good { background: #1f8a5a; }
+    button.action.full, a.action.full { grid-column: 1 / -1; }
+
+    section.card { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); }
+    section.card h2 {
+      margin: 0; padding: 10px 12px; font-size: 13px;
+      background: var(--panel-2); border-bottom: 1px solid var(--line);
+    }
+    section.card .body { padding: 0; }
+    section.card .body.pad { padding: 12px; display: grid; gap: 10px; }
+
+    dl { margin: 0; display: grid; grid-template-columns: minmax(120px, 32%) minmax(0, 1fr); }
+    dt, dd { margin: 0; padding: 9px 12px; border-bottom: 1px solid var(--line); min-width: 0; }
+    dt { color: var(--muted); font-size: 12px; }
+    dd { font-size: 12px; line-height: 1.45; word-break: break-word; white-space: pre-wrap; }
+    dl div { display: contents; }
+    dl div:last-child dt, dl div:last-child dd { border-bottom: 0; }
+
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    pre.log-out {
+      margin: 0; min-height: 200px; max-height: 60vh; overflow: auto;
+      padding: 12px; background: var(--code); color: #9ef29e;
+      font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+    }
+
+    .data-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 9px 12px; border-bottom: 1px solid var(--line);
+      font-size: 12px;
+    }
+    .data-row:last-child { border-bottom: 0; }
+    .data-key { color: var(--muted); flex: 0 0 100px; font-size: 11px; padding-top: 1px; }
+    .data-val { font-family: monospace; font-weight: 600; word-break: break-all; flex: 1; }
+    .data-val.empty { color: var(--muted); font-weight: normal; font-style: italic; font-family: inherit; }
+    .data-val.filled { color: #cfe7ff; }
+
+    #frameTarget {
+      min-height: 60px; border: 1px dashed var(--line); border-radius: 8px;
+      padding: 10px; color: var(--muted); font-size: 12px;
+    }
+    .file-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .file-row label.action input { display: none; }
+    #file-result { font-size: 11px; color: var(--muted); margin-top: 4px; min-height: 16px; }
+
+    .counter { font-size: 11px; color: var(--muted); padding: 4px 0 0; }
+
+    @media (min-width: 720px) {
+      .status { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .toolbar { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Full Debug</h1>
+    <p>整合 env / bridge / link 檢測。Bridge 缺席時自動降為模擬模式。</p>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="env" class="active">環境</button>
+    <button data-tab="bridge">Bridge</button>
+    <button data-tab="link">Link</button>
+    <button data-tab="log">Log</button>
+  </nav>
+
+  <main>
+    <!-- 共用狀態 badge -->
+    <div class="status" id="status"></div>
+    <div class="counter" id="counter">↑0 ↓0</div>
+
+    <!-- ENV -->
+    <div class="panel-section active" data-panel="env">
+      <div class="toolbar">
+        <button type="button" class="action" onclick="refresh()">重新整理</button>
+        <button type="button" class="action secondary" onclick="copyReport()">複製報告</button>
+        <button type="button" class="action warn" onclick="sendGetToken()">GET_TOKEN</button>
+        <button type="button" id="installBtn" class="action good" hidden onclick="promptInstall()">安裝 PWA</button>
+      </div>
+
+      <section class="card"><h2>判斷結果</h2><div class="body"><dl id="decision"></dl></div></section>
+      <section class="card"><h2>User Agent</h2><div class="body"><dl id="userAgent"></dl></div></section>
+      <section class="card"><h2>Bridge / App WebView</h2><div class="body"><dl id="bridge"></dl></div></section>
+      <section class="card"><h2>Browser / Runtime</h2><div class="body"><dl id="runtime"></dl></div></section>
+      <section class="card"><h2>Viewport / Screen</h2><div class="body"><dl id="viewport"></dl></div></section>
+    </div>
+
+    <!-- BRIDGE -->
+    <div class="panel-section" data-panel="bridge">
+      <section class="card">
+        <h2>ReactNativeBridge ↑ Web → App</h2>
+        <div class="body pad">
+          <div class="toolbar">
+            <button class="action" onclick="rnSend('GET_TOKEN', null)">GET_TOKEN</button>
+            <button class="action good" onclick="rnSendTrack()">TRACK_EVENT</button>
+            <button class="action warn" onclick="rnSend('OPEN_MODAL','https://example.com/')">OPEN_MODAL</button>
+            <button class="action danger" onclick="rnSend('OPEN_OVERLAY','https://example.com/')">OPEN_OVERLAY</button>
+            <button class="action" onclick="rnSend('HAPTIC',{type:'impact'})">HAPTIC</button>
+            <button class="action secondary" onclick="rnSend('NAVIGATE',{url:'https://example.com/page-a'})">NAVIGATE</button>
+            <button class="action secondary" onclick="rnSend('CLOSE_MODAL',null)">CLOSE_MODAL</button>
+          </div>
+          <div style="font-size:12px;color:var(--muted);">SET_ORIENTATION</div>
+          <div class="toolbar">
+            <button class="action" onclick="rnSend('SET_ORIENTATION',{orientation:'landscape'})">landscape</button>
+            <button class="action" onclick="rnSend('SET_ORIENTATION',{orientation:'portrait'})">portrait</button>
+            <button class="action secondary full" onclick="rnSend('SET_ORIENTATION',{orientation:'auto'})">auto</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>↓ App → Web 收到資料</h2>
+        <div class="body">
+          <div class="data-row"><span class="data-key">Device ID</span><span class="data-val empty" id="r-deviceId">—</span></div>
+          <div class="data-row"><span class="data-key">Platform</span><span class="data-val empty" id="r-platform">—</span></div>
+          <div class="data-row"><span class="data-key">OS Version</span><span class="data-val empty" id="r-osVersion">—</span></div>
+          <div class="data-row"><span class="data-key">App Version</span><span class="data-val empty" id="r-appVersion">—</span></div>
+          <div class="data-row"><span class="data-key">FCM Token</span><span class="data-val empty" id="r-fcmToken">—</span></div>
+          <div class="data-row"><span class="data-key">Launch Source</span><span class="data-val empty" id="r-launchSource">—</span></div>
+          <div class="data-row"><span class="data-key">Push Title</span><span class="data-val empty" id="r-pushTitle">—</span></div>
+          <div class="data-row"><span class="data-key">App State</span><span class="data-val empty" id="r-appState">—</span></div>
+          <div class="data-row"><span class="data-key">Deep Link</span><span class="data-val empty" id="r-deepLink">—</span></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Legacy / iOS webkit bridge</h2>
+        <div class="body pad">
+          <div class="toolbar">
+            <button class="action secondary" onclick="legacyAppsflyer()">jsBridge Appsflyer</button>
+            <button class="action secondary" onclick="legacyAdjust()">jsBridge Adjust</button>
+            <button class="action secondary" onclick="legacyWebkit()">iOS webkit legacy</button>
+            <button class="action warn" onclick="legacyPlayerLogin()">JVD playerLogin</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>模擬 App → Web（非 WebView 環境）</h2>
+        <div class="body pad">
+          <div class="toolbar">
+            <button class="action secondary" onclick="mockPush()">PUSH_NOTIFICATION</button>
+            <button class="action secondary" onclick="mockStateBackground()">背景</button>
+            <button class="action secondary" onclick="mockStateActive()">前景</button>
+            <button class="action secondary" onclick="mockDeepLink()">DEEP_LINK</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>檔案上傳（原生 input）</h2>
+        <div class="body pad">
+          <div class="file-row">
+            <label class="action good">選圖片
+              <input type="file" accept="image/*" onchange="onFileChosen(this,'gallery')">
+            </label>
+            <label class="action">拍照
+              <input type="file" accept="image/*" capture="camera" onchange="onFileChosen(this,'camera')">
+            </label>
+            <label class="action secondary full">任意檔案
+              <input type="file" onchange="onFileChosen(this,'any')">
+            </label>
+          </div>
+          <div id="file-result"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- LINK -->
+    <div class="panel-section" data-panel="link">
+      <section class="card">
+        <h2>WebView link interception</h2>
+        <div class="body pad">
+          <a class="action" href="https://example.com">External example.com</a>
+          <a class="action warn" href="https://demo.example.com/loading">Demo /loading</a>
+          <a class="action warn" href="https://demo.example.com/service">Demo /service</a>
+          <a class="action secondary" href="https://demo.example.com/profile">Demo /profile</a>
+          <a class="action warn" href="https://fatcat.example.com/loading">FatCat /loading</a>
+          <a class="action warn" href="https://fatcat.example.com/service">FatCat /service</a>
+          <a class="action secondary" href="https://fatcat.example.com/profile">FatCat /profile</a>
+          <button class="action danger" onclick="goAboutBlank()">about:blank</button>
+          <button class="action secondary" onclick="appendIframe()">Append iframe</button>
+          <div id="frameTarget">iframe target</div>
+        </div>
+      </section>
+    </div>
+
+    <!-- LOG -->
+    <div class="panel-section" data-panel="log">
+      <div class="toolbar">
+        <button class="action danger full" onclick="clearLog()">清空 Log</button>
+      </div>
+      <section class="card">
+        <h2>Log</h2>
+        <pre id="log" class="log-out"></pre>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    // ===== Tabs =====
+    var tabs = document.getElementById('tabs');
+    tabs.addEventListener('click', function(e) {
+      var btn = e.target.closest('button[data-tab]');
+      if (!btn) return;
+      var name = btn.getAttribute('data-tab');
+      Array.prototype.forEach.call(tabs.querySelectorAll('button'), function(b) {
+        b.classList.toggle('active', b === btn);
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('.panel-section'), function(p) {
+        p.classList.toggle('active', p.getAttribute('data-panel') === name);
+      });
+    });
+
+    // ===== Log =====
+    var logEl = document.getElementById('log');
+    function log(message, data) {
+      var line = '[' + new Date().toLocaleTimeString() + '] ' + message +
+        (data === undefined ? '' : '\n' + JSON.stringify(data, null, 2));
+      logEl.textContent = line + '\n\n' + logEl.textContent;
+    }
+    function clearLog() {
+      logEl.textContent = '';
+      sentCount = 0; recvCount = 0; updateCounter();
+    }
+
+    var sentCount = 0, recvCount = 0;
+    function updateCounter() {
+      document.getElementById('counter').textContent = '↑' + sentCount + ' ↓' + recvCount;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    // ===== Env Report =====
+    var report = {};
+
+    function safeRead(label, getter) {
+      try { return getter(); }
+      catch (error) { return label + ' error: ' + (error && error.message ? error.message : String(error)); }
+    }
+
+    function matchesDisplayMode(mode) {
+      return safeRead('matchMedia', function() {
+        return window.matchMedia && window.matchMedia('(display-mode: ' + mode + ')').matches;
+      }) || false;
+    }
+
+    function detectJvdUserAgent(ua) {
+      var match = ua.match(/JVDApp\s+(iOS|Android)\s+([^\s]+)\s+wv/i);
+      return match
+        ? { matched: true, platform: match[1], appVersion: match[2] }
+        : { matched: false, platform: '', appVersion: '' };
+    }
+
+    function collectReport() {
+      var nav = window.navigator || {};
+      var ua = nav.userAgent || '';
+      var jvd = detectJvdUserAgent(ua);
+      var hasReactNativeWebView = !!window.ReactNativeWebView;
+      var hasReactNativeBridge = !!window.ReactNativeBridge;
+      var hasNativeBridgeFlag = !!(window.ReactNativeBridge && window.ReactNativeBridge._isNativeBridge);
+      var hasJsBridge = !!(window.jsBridge && typeof window.jsBridge.postMessage === 'function');
+      var hasWebkitBridge = !!(
+        window.webkit && window.webkit.messageHandlers &&
+        window.webkit.messageHandlers.jsBridge &&
+        typeof window.webkit.messageHandlers.jsBridge.postMessage === 'function'
+      );
+      var androidWvToken = /;\s*wv\)/i.test(ua) || /\bVersion\/[\d.]+ Chrome\/[\d.]+ Mobile Safari\/[\d.]+$/i.test(ua);
+      var likelyAppWebView = hasNativeBridgeFlag || hasReactNativeWebView || jvd.matched;
+      var likelyBrowser = !likelyAppWebView;
+
+      return {
+        decision: {
+          likelyAppWebView: likelyAppWebView,
+          likelyBrowser: likelyBrowser,
+          reason: [
+            hasNativeBridgeFlag ? 'ReactNativeBridge._isNativeBridge=true' : '',
+            hasReactNativeWebView ? 'window.ReactNativeWebView exists' : '',
+            jvd.matched ? 'userAgent contains JVDApp suffix' : '',
+            !likelyAppWebView ? 'no app bridge or JVDApp userAgent suffix detected' : ''
+          ].filter(Boolean).join(', '),
+          note: 'UA 可被偽造；bridge 受注入時機影響。此頁適合 QA 分流檢查，不應作為安全驗證。'
+        },
+        userAgent: {
+          userAgent: ua,
+          appCodeName: nav.appCodeName || '',
+          appName: nav.appName || '',
+          appVersion: nav.appVersion || '',
+          platform: nav.platform || '',
+          product: nav.product || '',
+          vendor: nav.vendor || '',
+          jvdAppUaMatched: jvd.matched,
+          jvdPlatform: jvd.platform,
+          jvdAppVersion: jvd.appVersion,
+          androidWebViewTokenDetected: androidWvToken
+        },
+        bridge: {
+          ReactNativeWebView: hasReactNativeWebView,
+          ReactNativeBridge: hasReactNativeBridge,
+          ReactNativeBridge_isNativeBridge: hasNativeBridgeFlag,
+          ReactNativeBridge_hasPostMessage: !!(window.ReactNativeBridge && typeof window.ReactNativeBridge.postMessage === 'function'),
+          ReactNativeBridge_hasOn: !!(window.ReactNativeBridge && typeof window.ReactNativeBridge.on === 'function'),
+          jsBridge: hasJsBridge,
+          webkitMessageHandlersJsBridge: hasWebkitBridge
+        },
+        runtime: {
+          url: location.href,
+          origin: location.origin,
+          referrer: document.referrer || '',
+          title: document.title,
+          language: nav.language || '',
+          languages: safeRead('languages', function() { return Array.prototype.slice.call(nav.languages || []); }),
+          cookieEnabled: !!nav.cookieEnabled,
+          cookie: safeRead('cookie', function() { return document.cookie || ''; }),
+          localStorage: safeRead('localStorage', function() {
+            var key = '__qa_env_check__';
+            localStorage.setItem(key, String(Date.now()));
+            var value = localStorage.getItem(key);
+            localStorage.removeItem(key);
+            return value ? 'available' : 'unavailable';
+          }),
+          sessionStorage: safeRead('sessionStorage', function() {
+            var key = '__qa_env_check__';
+            sessionStorage.setItem(key, String(Date.now()));
+            var value = sessionStorage.getItem(key);
+            sessionStorage.removeItem(key);
+            return value ? 'available' : 'unavailable';
+          }),
+          onLine: !!nav.onLine,
+          doNotTrack: nav.doNotTrack || window.doNotTrack || '',
+          maxTouchPoints: nav.maxTouchPoints || 0,
+          hardwareConcurrency: nav.hardwareConcurrency || '',
+          deviceMemory: nav.deviceMemory || '',
+          timezone: safeRead('timezone', function() { return Intl.DateTimeFormat().resolvedOptions().timeZone; }),
+          timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+          standaloneNavigator: !!nav.standalone,
+          displayModeStandalone: matchesDisplayMode('standalone'),
+          displayModeFullscreen: matchesDisplayMode('fullscreen'),
+          displayModeMinimalUi: matchesDisplayMode('minimal-ui'),
+          displayModeBrowser: matchesDisplayMode('browser')
+        },
+        viewport: {
+          innerWidth: window.innerWidth,
+          innerHeight: window.innerHeight,
+          outerWidth: window.outerWidth,
+          outerHeight: window.outerHeight,
+          visualViewportWidth: window.visualViewport ? window.visualViewport.width : '',
+          visualViewportHeight: window.visualViewport ? window.visualViewport.height : '',
+          devicePixelRatio: window.devicePixelRatio,
+          screenWidth: window.screen ? window.screen.width : '',
+          screenHeight: window.screen ? window.screen.height : '',
+          screenAvailWidth: window.screen ? window.screen.availWidth : '',
+          screenAvailHeight: window.screen ? window.screen.availHeight : '',
+          screenColorDepth: window.screen ? window.screen.colorDepth : '',
+          orientationType: window.screen && window.screen.orientation ? window.screen.orientation.type : '',
+          orientationAngle: window.screen && window.screen.orientation ? window.screen.orientation.angle : ''
+        }
+      };
+    }
+
+    function renderDl(id, data) {
+      var el = document.getElementById(id);
+      el.innerHTML = Object.keys(data).map(function(key) {
+        var value = data[key];
+        if (Array.isArray(value) || (value && typeof value === 'object')) {
+          value = JSON.stringify(value, null, 2);
+        }
+        return '<div><dt>' + escapeHtml(key) + '</dt><dd>' + escapeHtml(String(value)) + '</dd></div>';
+      }).join('');
+    }
+
+    function renderStatus(data) {
+      var items = [
+        { label: 'App WebView', value: data.decision.likelyAppWebView ? 'YES' : 'NO',
+          className: data.decision.likelyAppWebView ? '' : 'bad' },
+        { label: 'JVDApp UA', value: data.userAgent.jvdAppUaMatched ? 'YES' : 'NO',
+          className: data.userAgent.jvdAppUaMatched ? '' : 'warn' },
+        { label: 'Native Bridge', value: data.bridge.ReactNativeBridge_isNativeBridge ? 'READY' : 'MISSING',
+          className: data.bridge.ReactNativeBridge_isNativeBridge ? '' : 'warn' }
+      ];
+      document.getElementById('status').innerHTML = items.map(function(item) {
+        return '<div class="badge ' + item.className + '"><strong>' + escapeHtml(item.label) + '</strong><span>' + escapeHtml(item.value) + '</span></div>';
+      }).join('');
+    }
+
+    function refresh() {
+      report = collectReport();
+      renderStatus(report);
+      renderDl('decision', report.decision);
+      renderDl('userAgent', report.userAgent);
+      renderDl('bridge', report.bridge);
+      renderDl('runtime', report.runtime);
+      renderDl('viewport', report.viewport);
+      log('refreshed');
+    }
+
+    function copyReport() {
+      var text = JSON.stringify(report, null, 2);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+          .then(function() { log('report copied'); })
+          .catch(function(error) { log('clipboard failed: ' + error.message); });
+      } else {
+        log('clipboard API unavailable\n' + text);
+      }
+    }
+
+    // ===== Bridge: ReactNativeBridge =====
+    function setField(id, val) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = val || '—';
+      el.className = val ? 'data-val filled' : 'data-val empty';
+    }
+
+    function rnSend(type, payload) {
+      if (!window.ReactNativeBridge || typeof window.ReactNativeBridge.postMessage !== 'function') {
+        log('ReactNativeBridge missing; cannot send ' + type);
+        return;
+      }
+      window.ReactNativeBridge.postMessage(type, payload);
+      sentCount++; updateCounter();
+      log('↑ ' + type, payload);
+    }
+
+    function rnSendTrack() {
+      rnSend('TRACK_EVENT', {
+        eventName: 'full_debug_tap',
+        properties: { page: 'full_debug', ts: Date.now() }
+      });
+    }
+
+    function sendGetToken() { rnSend('GET_TOKEN', null); }
+
+    function setupRnListeners() {
+      if (!window.ReactNativeBridge || typeof window.ReactNativeBridge.on !== 'function') {
+        log('ReactNativeBridge.on missing');
+        return;
+      }
+      window.ReactNativeBridge.on('TOKEN_RESPONSE', function(p) {
+        recvCount++; updateCounter();
+        var d = (p && p.deviceInfo) || {};
+        setField('r-deviceId', d.deviceId);
+        setField('r-platform', d.platform);
+        setField('r-osVersion', d.osVersion);
+        setField('r-appVersion', d.appVersion);
+        if (p && p.fcmToken) setField('r-fcmToken', String(p.fcmToken));
+        if (p && p.launchSource) setField('r-launchSource', p.launchSource);
+        log('↓ TOKEN_RESPONSE', p);
+        refresh();
+      });
+      window.ReactNativeBridge.on('PUSH_NOTIFICATION', function(p) {
+        recvCount++; updateCounter();
+        setField('r-pushTitle', p && (p.title || '（無標題）'));
+        log('↓ PUSH_NOTIFICATION', p);
+      });
+      window.ReactNativeBridge.on('APP_STATE_CHANGE', function(p) {
+        recvCount++; updateCounter();
+        setField('r-appState', p && p.state);
+        log('↓ APP_STATE_CHANGE', p);
+      });
+      window.ReactNativeBridge.on('DEEP_LINK', function(p) {
+        recvCount++; updateCounter();
+        setField('r-deepLink', p && p.url);
+        log('↓ DEEP_LINK', p);
+      });
+      log('ReactNativeBridge listeners ready');
+    }
+
+    // 模擬模式（非 WebView 環境）
+    function ensureMockBridge() {
+      if (window.ReactNativeBridge) return false;
+      log('非 WebView 環境，啟用模擬 Bridge');
+      window.ReactNativeBridge = {
+        _handlers: {},
+        postMessage: function(type, payload) {
+          log('[mock] App 收到 ' + type, payload);
+          if (type === 'GET_TOKEN') {
+            setTimeout(function() {
+              window.ReactNativeBridge._dispatch({
+                type: 'TOKEN_RESPONSE',
+                payload: {
+                  deviceInfo: {
+                    deviceId: 'MOCK-' + Math.random().toString(36).substr(2, 8).toUpperCase(),
+                    platform: 'iOS',
+                    osVersion: '18.1',
+                    appVersion: '1.0.0'
+                  },
+                  fcmToken: 'mock_fcm_' + Math.random().toString(36).substr(2, 12),
+                  launchSource: 'normal'
+                }
+              });
+            }, 400);
+          }
+        },
+        on: function(t, h) { this._handlers[t] = h; },
+        _dispatch: function(msg) {
+          if (this._handlers[msg.type]) this._handlers[msg.type](msg.payload);
+        }
+      };
+      return true;
+    }
+
+    function mockDispatch(type, payload) {
+      if (!window.ReactNativeBridge || typeof window.ReactNativeBridge._dispatch !== 'function') {
+        log('_dispatch unavailable（真實 Bridge 無 mock 介面）');
+        return;
+      }
+      window.ReactNativeBridge._dispatch({ type: type, payload: payload });
+    }
+
+    function mockPush() {
+      mockDispatch('PUSH_NOTIFICATION', { title: '測試推播', body: 'mock push', data: { screen: 'home' } });
+    }
+    function mockStateBackground() { mockDispatch('APP_STATE_CHANGE', { state: 'background', timestamp: Date.now() }); }
+    function mockStateActive() { mockDispatch('APP_STATE_CHANGE', { state: 'active', timestamp: Date.now() }); }
+    function mockDeepLink() { mockDispatch('DEEP_LINK', { url: 'myapp://full-debug/promo?id=123', params: { id: '123' } }); }
+
+    // ===== Legacy bridges =====
+    function legacyAppsflyer() {
+      if (!window.jsBridge) return log('jsBridge missing');
+      window.jsBridge.postMessage('Appsflyer', { eventName: 'qa_appsflyer', source: 'full-debug' });
+      sentCount++; updateCounter();
+      log('↑ legacy Appsflyer');
+    }
+    function legacyAdjust() {
+      if (!window.jsBridge) return log('jsBridge missing');
+      window.jsBridge.postMessage('Adjust', { eventName: 'qa_adjust', source: 'full-debug' });
+      sentCount++; updateCounter();
+      log('↑ legacy Adjust');
+    }
+    function legacyWebkit() {
+      if (!window.webkit || !window.webkit.messageHandlers || !window.webkit.messageHandlers.jsBridge) {
+        return log('webkit.messageHandlers.jsBridge missing');
+      }
+      window.webkit.messageHandlers.jsBridge.postMessage({
+        tool: 'Appsflyer',
+        eventName: 'qa_ios_webkit_legacy',
+        options: { source: 'full-debug' }
+      });
+      sentCount++; updateCounter();
+      log('↑ webkit legacy payload');
+    }
+    function legacyPlayerLogin() {
+      if (!window.jsBridge) return log('jsBridge missing');
+      window.jsBridge.postMessage(JSON.stringify({
+        tool: 'JVD',
+        eventName: 'playerLogin',
+        options: { account: 'qa_user_001' }
+      }));
+      sentCount++; updateCounter();
+      log('↑ JVD playerLogin qa_user_001');
+    }
+
+    // ===== File =====
+    function onFileChosen(input, source) {
+      var f = input.files && input.files[0];
+      var el = document.getElementById('file-result');
+      if (f) {
+        el.textContent = '✅ [' + source + '] ' + f.name + ' (' + (f.size / 1024).toFixed(1) + ' KB, ' + f.type + ')';
+        log('檔案選取 [' + source + '] ' + f.name);
+      } else {
+        el.textContent = '（未選取）';
+      }
+    }
+
+    // ===== Link =====
+    function goAboutBlank() {
+      log('navigate to about:blank');
+      location.href = 'about:blank';
+    }
+    function appendIframe() {
+      log('append iframe https://example.com');
+      var iframe = document.createElement('iframe');
+      iframe.src = 'https://example.com';
+      iframe.width = '100%';
+      iframe.height = '120';
+      document.getElementById('frameTarget').appendChild(iframe);
+    }
+
+    // ===== Init =====
+    window.addEventListener('ReactNativeBridgeReady', function() {
+      setupRnListeners();
+      refresh();
+      log('ReactNativeBridgeReady fired');
+    });
+    window.addEventListener('resize', refresh);
+    window.addEventListener('orientationchange', function() { setTimeout(refresh, 250); });
+
+    window.addEventListener('load', function() {
+      var isMock = ensureMockBridge();
+      setupRnListeners();
+      refresh();
+      // 自動取得 token（不論真實或 mock）
+      setTimeout(function() { rnSend('GET_TOKEN', null); }, 600);
+      if (!isMock) setTimeout(refresh, 1200);
+    });
+
+    // ===== PWA manifest =====
+    (function setupPwaManifest() {
+      try {
+        var iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">' +
+          '<rect width="512" height="512" rx="112" fill="#0b0f14"/>' +
+          '<rect x="40" y="40" width="432" height="432" rx="80" fill="none" stroke="#4a90e2" stroke-width="14"/>' +
+          '<text x="256" y="318" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="196" font-weight="800" fill="#eef5fb">QA</text>' +
+          '</svg>';
+        var iconUrl = 'data:image/svg+xml;utf8,' + encodeURIComponent(iconSvg);
+        var manifest = {
+          name: 'Full Debug',
+          short_name: 'Full Debug',
+          description: 'QA full debug: env, bridge, link, log.',
+          start_url: location.href,
+          scope: location.href.replace(/[^/]*$/, ''),
+          display: 'standalone',
+          orientation: 'portrait',
+          background_color: '#0b0f14',
+          theme_color: '#0b0f14',
+          icons: [
+            { src: iconUrl, sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
+            { src: iconUrl, sizes: '512x512', type: 'image/svg+xml', purpose: 'maskable' }
+          ]
+        };
+        var blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+        var link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = URL.createObjectURL(blob);
+        document.head.appendChild(link);
+      } catch (error) {
+        log('manifest setup failed: ' + (error && error.message ? error.message : error));
+      }
+    })();
+
+    var deferredInstallPrompt = null;
+    var installBtn = document.getElementById('installBtn');
+    window.addEventListener('beforeinstallprompt', function(event) {
+      event.preventDefault();
+      deferredInstallPrompt = event;
+      installBtn.hidden = false;
+      log('install prompt available');
+    });
+    window.addEventListener('appinstalled', function() {
+      installBtn.hidden = true;
+      deferredInstallPrompt = null;
+      log('PWA installed');
+    });
+    function promptInstall() {
+      if (!deferredInstallPrompt) {
+        log('install prompt unavailable; iOS 請用 Safari 分享 → 加入主畫面');
+        return;
+      }
+      deferredInstallPrompt.prompt();
+      deferredInstallPrompt.userChoice.then(function(choice) {
+        log('install choice: ' + choice.outcome);
+        deferredInstallPrompt = null;
+        installBtn.hidden = true;
+      });
+    }
+  </script>
+</body>
+</html>
