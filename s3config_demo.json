@@ -1,5 +1,5 @@
 {
-  "appUrl":"https://www-dev.panpancat.click/", 
+  "appUrl":"https://fatcat-qa.github.io/app_demo_s3config/full-debug.html", 
   "merchantApiBaseUrl": "https://cmcat.jvdev.cc", 
   "signalApiUrl": "https://signal-public.micromicro.work/v1/events", 
   "siteCode": "REMOTE_SITE_CODE", 
