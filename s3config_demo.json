@@ -1,7 +1,7 @@
 {
   "appUrl":"https://www-dev.panpancat.click/", 
-  "merchantApiBaseUrl": "https://ted-test.zeabur.app/", 
-  "signalApiUrl": "https://ted-test.zeabur.app/", 
+  "merchantApiBaseUrl": "https://cmcat.jvdev.cc", 
+  "signalApiUrl": "https://signal-public.micromicro.work/v1/events", 
   "siteCode": "REMOTE_SITE_CODE", 
   "features":{ 
     "debugPanel": true 
