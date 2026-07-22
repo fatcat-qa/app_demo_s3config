@@ -4,8 +4,11 @@
 編輯s3config_demo.json裡面的appUrl欄位，改成想要的網址後commit change後，會自動進行部署到github pages
 
 在code分頁可以看到部署狀態，褐色圈圈代表是部署中
+
 <img width="790" height="421" alt="image" src="https://github.com/user-attachments/assets/6266a5d2-9834-4ffe-8232-3273d000b29c" />
+
 綠色勾勾代表部署完成
+
 <img width="817" height="399" alt="image" src="https://github.com/user-attachments/assets/a2e51291-d5f7-4ad1-a156-79e268504d3c" />
 
 可以透過以下網址確認變更狀態
