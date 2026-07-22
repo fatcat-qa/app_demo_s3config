@@ -3,6 +3,8 @@
 ## 修改App開啟的URL
 編輯s3config_demo.json裡面的appUrl欄位，改成想要的網址後commit change後，會自動進行部署到github pages
 
+P.S (full-debug.html)[https://fatcat-qa.github.io/app_demo_s3config/full-debug.html] 是完整的app-web debug頁面，有需要的話可以換成這個網址去做測試
+
 在code分頁可以看到部署狀態，褐色圈圈代表是部署中
 
 <img width="790" height="421" alt="image" src="https://github.com/user-attachments/assets/6266a5d2-9834-4ffe-8232-3273d000b29c" />
